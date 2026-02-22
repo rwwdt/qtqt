@@ -2,7 +2,9 @@
 import { BibleVersion, BibleTextResponse } from "../types";
 import { getReferenceForDate } from "./sheetService";
 
-const WORKER_ENDPOINT = "/api/bible";
+const WORKER_ENDPOINT = window.location.hostname === "localhost" 
+  ? "https://qt-bible-api.junjunebug.workers.dev/"
+  : "/api/bible";
 
 const ABBR_ID_MAP: Record<string, number> = {
   "창": 1, "출": 2, "레": 3, "민": 4, "신": 5, "수": 6, "삿": 7, "룻": 8, "삼상": 9, "삼하": 10,
