@@ -1,0 +1,5 @@
+{
+  "name": "Daily Grace Devotional",
+  "description": "A mobile-first daily devotional app that fetches Bible verses from Google Sheets and provides AI-powered reflections in multiple versions (KRV, URIMAN, NIV).",
+  "requestFramePermissions": []
+}

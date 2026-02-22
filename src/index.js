@@ -2,20 +2,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     
-    // Static Assets 서빙
-    if (env.ASSETS) {
-      try {
-        const response = await env.ASSETS.fetch(request);
-        if (response.status !== 404) {
-          return response;
-        }
-      } catch (e) {
-        console.error('Assets fetch error:', e);
-      }
-    }
-    
-    // API 엔드포인트
-    if (url.pathname === '/api/bible') {
+    // API 엔드포인트: 쿼리에 book 파라미터가 있으면 DB 쿼리 (기존 호환)
+    if (url.searchParams.has('book') || url.pathname === '/api/bible') {
       const book = url.searchParams.get('book') || 40;
       const ch = url.searchParams.get('ch') || 8;
       const start = url.searchParams.get('start') || 14;
@@ -38,6 +26,18 @@ export default {
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
+    // Static Assets 서빙
+    if (env.ASSETS) {
+      try {
+        const response = await env.ASSETS.fetch(request);
+        if (response.status !== 404) {
+          return response;
+        }
+      } catch (e) {
+        console.error('Assets fetch error:', e);
       }
     }
     
