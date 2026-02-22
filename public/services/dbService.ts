@@ -1,0 +1,96 @@
+
+import { BibleVersion, BibleTextResponse } from "../types";
+import { getReferenceForDate } from "./sheetService";
+
+const WORKER_ENDPOINT = "/api/bible";
+
+const ABBR_ID_MAP: Record<string, number> = {
+  "창": 1, "출": 2, "레": 3, "민": 4, "신": 5, "수": 6, "삿": 7, "룻": 8, "삼상": 9, "삼하": 10,
+  "왕상": 11, "왕하": 12, "대상": 13, "대하": 14, "스": 15, "느": 16, "에": 17, "욥": 18, "시": 19, "잠": 20,
+  "전": 21, "아": 22, "사": 23, "렘": 24, "애": 25, "겔": 26, "단": 27, "호": 28, "욜": 29, "암": 30,
+  "옵": 31, "욘": 32, "미": 33, "나": 34, "합": 35, "습": 36, "학": 37, "슥": 38, "말": 39,
+  "마": 40, "막": 41, "눅": 42, "요": 43, "행": 44, "롬": 45, "고전": 46, "고후": 47, "갈": 48, "엡": 49,
+  "빌": 50, "골": 51, "살전": 52, "살후": 53, "딤전": 54, "딤후": 55, "딛": 56, "몬": 57, "히": 58, "약": 59,
+  "벧전": 60, "벧후": 61, "요일": 62, "요이": 63, "요삼": 64, "유": 65, "계": 66
+};
+
+const ID_NAME_MAP: Record<number, string> = {
+  1: "창세기", 2: "출애굽기", 3: "레위기", 4: "민수기", 5: "신명기", 6: "여호수아", 7: "사사기", 8: "룻기", 9: "사무엘상", 10: "사무엘하",
+  11: "열왕기상", 12: "열왕기하", 13: "역대상", 14: "역대하", 15: "에스라", 16: "느헤미야", 17: "에스더", 18: "욥기", 19: "시편", 20: "잠언",
+  21: "전도서", 22: "아가", 23: "이사야", 24: "예레미야", 25: "예레미야애가", 26: "에스겔", 27: "다니엘", 28: "호세아", 29: "요엘", 30: "아모스",
+  31: "오바댜", 32: "요나", 33: "미가", 34: "나훔", 35: "하박국", 36: "스바냐", 37: "학개", 38: "스가랴", 39: "말라기",
+  40: "마태복음", 41: "마가복음", 42: "누가복음", 43: "요한복음", 44: "사도행전", 45: "로마서", 46: "고린도전서", 47: "고린도후서", 48: "갈라디아서", 49: "에베소서",
+  50: "빌립보서", 51: "골로새서", 52: "데살로니가전서", 53: "데살로니가후서", 54: "디모데전서", 55: "디모데후서", 56: "디도서", 57: "빌레몬서", 58: "히브리서", 59: "야고보서",
+  60: "베드로전서", 61: "베드로후서", 62: "요한일서", 63: "요한이서", 64: "요한삼서", 65: "유다서", 66: "요한계시록"
+};
+
+const ID_ENG_NAME_MAP: Record<number, string> = {
+  1: "Genesis", 2: "Exodus", 3: "Leviticus", 4: "Numbers", 5: "Deuteronomy", 6: "Joshua", 7: "Judges", 8: "Ruth", 9: "1 Samuel", 10: "2 Samuel",
+  11: "1 Kings", 12: "2 Kings", 13: "1 Chronicles", 14: "2 Chronicles", 15: "Ezra", 16: "Nehemiah", 17: "Esther", 18: "Job", 19: "Psalms", 20: "Proverbs",
+  21: "Ecclesiastes", 22: "Song of Solomon", 23: "Isaiah", 24: "Jeremiah", 25: "Lamentations", 26: "Ezekiel", 27: "Daniel", 28: "Hosea", 29: "Joel", 30: "Amos",
+  31: "Obadiah", 32: "Jonah", 33: "Micah", 34: "Nahum", 35: "Habakkuk", 36: "Zephaniah", 37: "Haggai", 38: "Zechariah", 39: "Malachi",
+  40: "Matthew", 41: "Mark", 42: "Luke", 43: "John", 44: "Acts", 45: "Romans", 46: "1 Corinthians", 47: "2 Corinthians", 48: "Galatians", 49: "Ephesians",
+  50: "Philippians", 51: "Colossians", 52: "1 Thessalonians", 53: "2 Thessalonians", 54: "1 Timothy", 55: "2 Timothy", 56: "Titus", 57: "Philemon", 58: "Hebrews", 59: "James",
+  60: "1 Peter", 61: "2 Peter", 62: "1 John", 63: "2 John", 64: "3 John", 65: "Jude", 66: "Revelation"
+};
+
+function parseAbbrReference(ref: string) {
+  const match = ref.match(/^(.+?)\s+(\d+):(\d+)(?:[-~](\d+))?$/);
+  if (!match) return null;
+
+  const abbr = match[1].trim();
+  const chapter = parseInt(match[2]);
+  const start = parseInt(match[3]);
+  const end = match[4] ? parseInt(match[4]) : start;
+  
+  const bookId = ABBR_ID_MAP[abbr];
+  if (!bookId) return null;
+
+  return { bookId, chapter, start, end, bookName: ID_NAME_MAP[bookId], engBookName: ID_ENG_NAME_MAP[bookId] };
+}
+
+export const fetchDevotionalFromDb = async (date: Date): Promise<BibleTextResponse | null> => {
+  try {
+    const rawRef = await getReferenceForDate(date);
+    if (!rawRef) return null;
+
+    const params = parseAbbrReference(rawRef);
+    if (!params) return null;
+
+    const url = `${WORKER_ENDPOINT}?book=${params.bookId}&ch=${params.chapter}&start=${params.start}&end=${params.end}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("API Fetch Failed");
+
+    const rawData = await response.json();
+    if (!Array.isArray(rawData)) return null;
+
+    const texts = {
+      [BibleVersion.KRV]: "",
+      [BibleVersion.URIMAN]: "",
+      [BibleVersion.NIV]: ""
+    };
+
+    rawData.forEach((item: any) => {
+      const content = `${item.verse}. ${item.content} `;
+      if (item.translation === "KRV") texts[BibleVersion.KRV] += content;
+      else if (item.translation === "URIMAN") texts[BibleVersion.URIMAN] += content;
+      else if (item.translation === "NIV") texts[BibleVersion.NIV] += content;
+    });
+
+    const fullReference = `${params.bookName} ${params.chapter}:${params.start}${params.start !== params.end ? `~${params.end}` : ""}`;
+    const engReference = `${params.engBookName} ${params.chapter}:${params.start}${params.start !== params.end ? `~${params.end}` : ""}`;
+
+    return {
+      reference: fullReference,
+      engReference: engReference,
+      texts: {
+        [BibleVersion.KRV]: texts[BibleVersion.KRV].trim() || "본문이 없습니다.",
+        [BibleVersion.URIMAN]: texts[BibleVersion.URIMAN].trim() || "본문이 없습니다.",
+        [BibleVersion.NIV]: texts[BibleVersion.NIV].trim() || "본문이 없습니다."
+      }
+    };
+  } catch (error) {
+    console.error("fetchDevotionalFromDb error:", error);
+    throw error;
+  }
+};
