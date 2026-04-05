@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface DatePickerModalProps {
   currentDate: Date;
@@ -20,6 +20,8 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
   
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [devotionalList, setDevotionalList] = useState<DevotionalData[]>([]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const todayRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fetchDevotionalList = async () => {
@@ -33,8 +35,10 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
         const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
         
         const list: DevotionalData[] = [];
-        const oneWeekAgo = new Date(today);
-        oneWeekAgo.setDate(today.getDate() - 7);
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const sevenDaysLater = new Date(today);
+        sevenDaysLater.setDate(today.getDate() + 7);
         
         for (let i = 1; i < rows.length; i++) {
           const columns = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
@@ -49,7 +53,7 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
             const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             date.setHours(0, 0, 0, 0);
             
-            if (date >= oneWeekAgo) {
+            if (date >= sevenDaysAgo && date <= sevenDaysLater) {
               list.push({ date, reference });
             }
           }
@@ -64,6 +68,18 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
 
     fetchDevotionalList();
   }, []);
+
+  useEffect(() => {
+    if (todayRef.current && listRef.current) {
+      const listElement = listRef.current;
+      const todayElement = todayRef.current;
+      const listHeight = listElement.clientHeight;
+      const todayTop = todayElement.offsetTop;
+      const todayHeight = todayElement.clientHeight;
+      
+      listElement.scrollTop = todayTop - (listHeight / 2) + (todayHeight / 2);
+    }
+  }, [devotionalList]);
 
   const formatDate = (d: Date) => {
     const m = d.getMonth() + 1;
@@ -81,10 +97,6 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
   const isSelected = (d: Date) => d.toDateString() === selectedDate.toDateString();
   const isToday = (d: Date) => d.toDateString() === today.toDateString();
   const hasSelectionChanged = selectedDate.toDateString() !== currentDate.toDateString();
-
-  const handleTodayClick = () => {
-    setSelectedDate(today);
-  };
 
   const handleConfirm = () => {
     if (hasSelectionChanged) {
@@ -109,11 +121,12 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div ref={listRef} className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto">
           {devotionalList.map((item, idx) => (
             <button
               key={idx}
+              ref={isToday(item.date) ? todayRef : null}
               onClick={() => setSelectedDate(item.date)}
               className={`w-full px-5 py-4 border-b border-stone-100 text-left transition-colors ${
                 isSelected(item.date)
@@ -130,17 +143,19 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
                     <span className={`text-[10px] font-medium ${isSelected(item.date) ? 'text-blue-500' : 'text-stone-400'}`}>
                       {DAYS[item.date.getDay()]}요일
                     </span>
-                    {isToday(item.date) && (
-                      <span className="text-[9px] font-semibold text-blue-600 mt-0.5">오늘</span>
-                    )}
                   </div>
                   <div className="w-[1px] h-10 bg-stone-200"></div>
-                  <span className={`text-[13px] font-medium noto-sans ${isSelected(item.date) ? 'text-blue-700' : 'text-stone-600'}`}>
-                    {formatReference(item.reference)}
-                  </span>
+                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                    <span className={`text-[13px] font-medium noto-sans ${isSelected(item.date) ? 'text-blue-700' : 'text-stone-600'}`}>
+                      {formatReference(item.reference)}
+                    </span>
+                    {isToday(item.date) && (
+                      <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-semibold rounded-full shrink-0">오늘</span>
+                    )}
+                  </div>
                 </div>
                 {isSelected(item.date) && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-2">
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 )}
@@ -151,18 +166,12 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
       </div>
 
       <div className="bg-white border-t border-stone-100 px-5 py-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="max-w-3xl mx-auto flex items-center space-x-2">
+        <div className="max-w-3xl mx-auto flex items-center space-x-3">
           <button
             onClick={onClose}
             className="flex-1 py-3.5 text-[13px] font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors active:scale-[0.98]"
           >
             취소
-          </button>
-          <button
-            onClick={handleTodayClick}
-            className="flex-1 py-3.5 text-[13px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors active:scale-[0.98]"
-          >
-            오늘로 가기
           </button>
           <button
             onClick={handleConfirm}
