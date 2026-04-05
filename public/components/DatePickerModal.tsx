@@ -18,10 +18,10 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [selectedDate, setSelectedDate] = useState<Date>(currentDate);
   const [devotionalList, setDevotionalList] = useState<DevotionalData[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
-  const todayRef = useRef<HTMLButtonElement>(null);
+  const selectedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fetchDevotionalList = async () => {
@@ -59,7 +59,7 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
           }
         }
         
-        list.sort((a, b) => b.date.getTime() - a.date.getTime());
+        list.sort((a, b) => a.date.getTime() - b.date.getTime());
         setDevotionalList(list);
       } catch (error) {
         console.error("Sheet Sync Error:", error);
@@ -70,14 +70,14 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
   }, []);
 
   useEffect(() => {
-    if (todayRef.current && listRef.current) {
+    if (selectedRef.current && listRef.current) {
       const listElement = listRef.current;
-      const todayElement = todayRef.current;
+      const selectedElement = selectedRef.current;
       const listHeight = listElement.clientHeight;
-      const todayTop = todayElement.offsetTop;
-      const todayHeight = todayElement.clientHeight;
+      const selectedTop = selectedElement.offsetTop;
+      const selectedHeight = selectedElement.clientHeight;
       
-      listElement.scrollTop = todayTop - (listHeight / 2) + (todayHeight / 2);
+      listElement.scrollTop = selectedTop - (listHeight / 2) + (selectedHeight / 2);
     }
   }, [devotionalList]);
 
@@ -126,7 +126,7 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
           {devotionalList.map((item, idx) => (
             <button
               key={idx}
-              ref={isToday(item.date) ? todayRef : null}
+              ref={isSelected(item.date) ? selectedRef : null}
               onClick={() => setSelectedDate(item.date)}
               className={`w-full px-5 py-4 border-b border-stone-100 text-left transition-colors ${
                 isSelected(item.date)
