@@ -24,41 +24,31 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const fetchDevotionalList = async () => {
-      const PUBLISHED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcRMiOvoZBJsSxuEv-SJzW-AIne_JaS6xO2smUL8EWwUpOTJdpCiZEEc3Z5geX7dHtYM0U6DxJ4YBR/pub?gid=455762225&single=true&output=csv";
-      
-      try {
-        const response = await fetch(PUBLISHED_CSV_URL);
-        if (!response.ok) throw new Error("시트 로드 실패");
+    const REFERENCE_ENDPOINT = "https://qt-bible-api.junjunebug.workers.dev/api/reference";
 
-        const csvText = await response.text();
-        const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
-        
+    const fetchDevotionalList = async () => {
+      try {
+        const res = await fetch(REFERENCE_ENDPOINT);
+        if (!res.ok) throw new Error("시트 로드 실패");
+
+        const raw: { date: string; reference: string }[] = await res.json();
+
         const list: DevotionalData[] = [];
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
         const sevenDaysLater = new Date(today);
         sevenDaysLater.setDate(today.getDate() + 7);
-        
-        for (let i = 1; i < rows.length; i++) {
-          const columns = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
-          if (columns.length < 2) continue;
 
-          const dateStr = columns[0].trim();
-          const reference = columns[1];
-          
-          const dateMatch = dateStr.match(/(\d{4})[.\-\s]+(\d{1,2})[.\-\s]+(\d{1,2})/);
-          if (dateMatch) {
-            const [, year, month, day] = dateMatch;
-            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            date.setHours(0, 0, 0, 0);
-            
-            if (date >= sevenDaysAgo && date <= sevenDaysLater) {
-              list.push({ date, reference });
-            }
+        for (const item of raw) {
+          const [year, month, day] = item.date.split('-');
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          date.setHours(0, 0, 0, 0);
+
+          if (date >= sevenDaysAgo && date <= sevenDaysLater) {
+            list.push({ date, reference: item.reference });
           }
         }
-        
+
         list.sort((a, b) => a.date.getTime() - b.date.getTime());
         setDevotionalList(list);
       } catch (error) {
