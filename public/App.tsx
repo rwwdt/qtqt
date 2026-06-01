@@ -26,6 +26,7 @@ const App: React.FC = () => {
   });
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isDark, setIsDark] = useState<boolean>(() => document.documentElement.classList.contains('dark'));
   const [lyricIdx, setLyricIdx] = useState(0);
   const activeRequestRef = useRef<string | null>(null);
 
@@ -80,6 +81,15 @@ const App: React.FC = () => {
   const handleDateChange = (newDate: Date) => fetchData(newDate);
   const handleVersionChange = (version: BibleVersion) => setState(prev => ({ ...prev, selectedVersion: version }));
 
+  const toggleTheme = useCallback(() => {
+    setIsDark(prev => {
+      const next = !prev;
+      document.documentElement.classList.toggle('dark', next);
+      try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch (e) {}
+      return next;
+    });
+  }, []);
+
   const handleShare = async () => {
     if (!state.devotional) return;
     let text = `[오늘의 말씀]\n${state.devotional.reference}\n\n"${state.devotional.texts[state.selectedVersion]}"`;
@@ -93,11 +103,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-white text-[#333] selection:bg-blue-50 flex flex-col overflow-hidden">
-      <Header 
+    <div className="h-screen w-full bg-white dark:bg-stone-900 text-[#333] dark:text-stone-100 selection:bg-blue-50 dark:selection:bg-blue-900/40 flex flex-col overflow-hidden">
+      <Header
         selectedVersion={state.selectedVersion}
         fileStatus={state.fileStatus}
         onVersionChange={handleVersionChange}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
       />
       
       <main className="flex-1 overflow-y-auto relative no-scrollbar">
@@ -107,7 +119,7 @@ const App: React.FC = () => {
               <p className="text-blue-500 font-semibold text-[10px] tracking-[0.3em] uppercase mb-4 animate-pulse eng-font">
                 READING WORD
               </p>
-              <div className="w-8 h-[2px] bg-blue-100 mx-auto"></div>
+              <div className="w-8 h-[2px] bg-blue-100 dark:bg-blue-900/40 mx-auto"></div>
             </div>
             <div className="relative h-24 w-full flex items-center justify-center overflow-hidden">
               <p key={lyricIdx} className="text-stone-400 text-center italic serif-font text-[15px] leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-1000 max-w-[280px] break-keep">
@@ -117,8 +129,8 @@ const App: React.FC = () => {
           </div>
         ) : state.error ? (
           <div className="text-center py-20 px-8 max-w-md mx-auto flex flex-col items-center">
-            <div className="w-14 h-14 bg-stone-50 rounded-full flex items-center justify-center mb-6 border border-stone-100">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div className="w-14 h-14 bg-stone-50 dark:bg-stone-800 rounded-full flex items-center justify-center mb-6 border border-stone-100 dark:border-stone-700">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-300 dark:text-stone-500"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <p className="text-stone-400 mb-8 text-sm leading-relaxed break-keep font-medium">{state.error}</p>
             <button 
