@@ -2,7 +2,10 @@ const PUBLISHED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcRM
 
 // /api/reference 캐시 신선도: 이 시간이 지나면 stale을 반환하면서 백그라운드로 갱신한다.
 const REFERENCE_FRESH_TTL_MS = 3600 * 1000; // 1시간
-// 브라우저/엣지 다운스트림 캐시 시간(초). 워커 내부 신선도 로직이 실제 신선도를 책임지므로 짧게 둔다.
+// 엣지(caches.default) 보관 시간(초). caches.default는 저장본의 max-age만큼만 보관하므로,
+// 길게 잡아 edge가 항목을 유지하게 한다. 실제 신선도는 X-Cached-At 기반 로직이 책임진다.
+const REFERENCE_EDGE_MAX_AGE = 31536000; // 1년 (엣지 보관용)
+// 클라이언트(브라우저)에게 주는 max-age(초). 짧게 두어 5분마다 따뜻한 엣지캐시로 재확인한다.
 const REFERENCE_DOWNSTREAM_MAX_AGE = 300; // 5분
 
 function parseCsvToList(csvText) {
@@ -31,14 +34,23 @@ async function buildReferenceResponse() {
   }
   const csvText = await upstream.text();
   const list = parseCsvToList(csvText);
+  // 저장본은 긴 max-age로 만들어 caches.default가 항목을 오래 보관하게 한다(신선도는 X-Cached-At가 책임).
   return new Response(JSON.stringify(list), {
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": `public, max-age=${REFERENCE_DOWNSTREAM_MAX_AGE}`,
+      "Cache-Control": `public, max-age=${REFERENCE_EDGE_MAX_AGE}`,
       "X-Cached-At": String(Date.now()),
     },
   });
+}
+
+// 캐시 저장본/빌드본을 클라이언트용으로 다시 감싼다: 엣지 보관본은 긴 max-age를 유지하되,
+// 브라우저에게는 짧은 max-age를 줘 5분마다 재확인하게 한다(본문은 그대로 스트리밍).
+function toClientResponse(res) {
+  const headers = new Headers(res.headers);
+  headers.set("Cache-Control", `public, max-age=${REFERENCE_DOWNSTREAM_MAX_AGE}`);
+  return new Response(res.body, { status: res.status, headers });
 }
 
 export default {
@@ -56,10 +68,10 @@ export default {
         try {
           const fresh = await buildReferenceResponse();
           ctx.waitUntil(cache.put(cacheKey, fresh.clone()));
-          return fresh;
+          return toClientResponse(fresh);
         } catch (e) {
           const stale = await cache.match(cacheKey);
-          if (stale) return stale;
+          if (stale) return toClientResponse(stale);
           return new Response(JSON.stringify({ error: "sheet fetch failed" }), {
             status: 502,
             headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -71,24 +83,23 @@ export default {
       if (cached) {
         const cachedAt = Number(cached.headers.get('X-Cached-At')) || 0;
         const age = Date.now() - cachedAt;
-        if (age < REFERENCE_FRESH_TTL_MS) {
-          // 신선: 그대로 반환.
-          return cached;
+        if (age >= REFERENCE_FRESH_TTL_MS) {
+          // Stale: 즉시 반환하면서 백그라운드에서 갱신(사용자 대기 없음).
+          ctx.waitUntil(
+            buildReferenceResponse()
+              .then((fresh) => cache.put(cacheKey, fresh))
+              .catch((e) => console.error('reference background refresh failed:', e))
+          );
         }
-        // Stale: 즉시 반환하고 백그라운드에서 갱신(사용자 대기 없음).
-        ctx.waitUntil(
-          buildReferenceResponse()
-            .then((fresh) => cache.put(cacheKey, fresh))
-            .catch((e) => console.error('reference background refresh failed:', e))
-        );
-        return cached;
+        // 신선/stale 모두 캐시에서 즉시 반환(클라이언트엔 짧은 max-age).
+        return toClientResponse(cached);
       }
 
       // 캐시 없음: 동기 fetch 후 저장.
       try {
         const fresh = await buildReferenceResponse();
         ctx.waitUntil(cache.put(cacheKey, fresh.clone()));
-        return fresh;
+        return toClientResponse(fresh);
       } catch (e) {
         return new Response(JSON.stringify({ error: "sheet fetch failed" }), {
           status: 502,
