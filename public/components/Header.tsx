@@ -10,7 +10,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ selectedVersion, onVersionChange }) => {
   return (
-    <header className="bg-white dark:bg-midnight-blue border-b border-stone-100 dark:border-white/10 z-50 pt-6 pb-2 shrink-0 relative">
+    <header className="bg-white dark:bg-[#0b1147] border-b border-stone-100 dark:border-white/10 z-50 pt-6 pb-2 shrink-0 relative">
       {/* BibleCard와 동일한 컨테이너 구조 적용 (max-w-3xl mx-auto px-5) */}
       <div className="max-w-3xl mx-auto px-5">
         <div className="flex items-center justify-between mb-5">
@@ -44,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({ selectedVersion, onVersionChange }) => 
                 onClick={() => onVersionChange(v)}
                 className={`flex-1 py-2.5 px-1 text-[11px] font-semibold rounded-xl transition-all whitespace-nowrap eng-font ${
                   selectedVersion === v 
-                    ? 'bg-white dark:bg-midnight-blue text-blue-700 dark:text-amber-gold shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                    ? 'bg-white dark:bg-midnight-blue text-blue-700 dark:text-amber-gold shadow-sm ring-1 ring-black/5 dark:ring-2 dark:ring-white'
                     : 'text-stone-400 dark:text-white/60 hover:text-stone-600 dark:hover:text-white'
                 }`}
               >

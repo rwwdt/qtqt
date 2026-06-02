@@ -96,7 +96,7 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
 
   return (
     <div className="fixed inset-0 z-[100] bg-white dark:bg-[#0b1147] flex flex-col animate-in slide-in-from-bottom duration-300">
-      <div className="bg-white dark:bg-midnight-blue border-b border-stone-100 dark:border-white/10 px-5 py-4 shrink-0">
+      <div className="bg-white dark:bg-[#0b1147] border-b border-stone-100 dark:border-white/10 px-5 py-4 shrink-0">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <h3 className="text-[17px] font-bold text-[#333] dark:text-white noto-sans">날짜 선택</h3>
           <button
@@ -155,7 +155,7 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({ currentDate, onDateSe
         </div>
       </div>
 
-      <div className="bg-white dark:bg-midnight-blue border-t border-stone-100 dark:border-white/10 px-5 py-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="bg-white dark:bg-[#0b1147] border-t border-stone-100 dark:border-white/10 px-5 py-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="max-w-3xl mx-auto flex items-center space-x-3">
           <button
             onClick={onClose}
